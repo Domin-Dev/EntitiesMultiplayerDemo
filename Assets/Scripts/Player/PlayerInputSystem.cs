@@ -6,27 +6,30 @@ using Unity.NetCode;
 using UnityEngine;
 
 [UpdateInGroup(typeof(GhostInputSystemGroup))]
-partial struct PlayerInputSystem : ISystem
+public partial class PlayerInputSystem : SystemBase
 {
+    private NewInput input;
 
     [BurstCompile]
-    public void OnCreate(ref SystemState state)
+    protected override void OnCreate()
     {
-        state.RequireForUpdate<NetworkStreamInGame>();
-        state.RequireForUpdate<PlayerInput>();
+        RequireForUpdate<NetworkStreamInGame>();
+        RequireForUpdate<PlayerInput>();
+
+        input = new NewInput();
+        input.Enable();
+    } 
+    
+    [BurstCompile]
+    protected override void OnDestroy()
+    {
+        input.Disable();
     }
 
-
     [BurstCompile]
-    public void OnUpdate(ref SystemState state)
+    protected override void OnUpdate()
     {
-        float2 move = float2.zero;
-
-        if (Input.GetKey(KeyCode.W)) move.y += 1;
-        if (Input.GetKey(KeyCode.S)) move.y -= 1;
-        if (Input.GetKey(KeyCode.A)) move.x -= 1;
-        if (Input.GetKey(KeyCode.D)) move.x += 1;
-        
+        float2 move = input.Player.Move.ReadValue<Vector2>();
         foreach(RefRW<PlayerInput> input in SystemAPI.Query<RefRW<PlayerInput>>().WithAll<GhostOwnerIsLocal>())
         {
             input.ValueRW.movementDirection = move;
